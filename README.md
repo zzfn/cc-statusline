@@ -5,7 +5,7 @@
 ## 效果预览
 
 ```
-[Opus] │ my-project │ main │ 📝3 │ ctx:42% │ in:15.2k │ cache:85% │ $0.012 │ ⏱15m │ +156/-23 │ [ZAI] Token(5h):1% │ [ZAI] MCP(1月):0%
+[Opus] │ my-project │ main │ 📝3 │ ctx:42% │ in:15.2k │ cache:85% │ [ZAI] Token(5h):1% │ [ZAI] MCP(1月):0%
 ```
 
 ## 安装
@@ -65,9 +65,6 @@ export ANTHROPIC_AUTH_TOKEN="your-token-here"
 | `ctx:N%` | 上下文窗口使用率 | 绿/黄/红 |
 | `in:Nk` | 输入 token 数 | 灰色 |
 | `cache:N%` | 缓存命中率 | 绿/黄/红 |
-| `$N.NN` | 会话成本 (USD) | 黄色 |
-| `⏱Nm` | 会话时长 | 青色 |
-| `+N/-N` | 代码行变更 | 绿/红 |
 | `[ZAI] Token(5h):N%` | ZAI Token 使用率（5小时窗口） | 绿/黄/红 |
 | `[ZAI] MCP(1月):N%` | ZAI MCP 调用使用率（1个月窗口） | 绿/黄/红 |
 
