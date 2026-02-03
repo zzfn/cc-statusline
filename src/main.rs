@@ -133,6 +133,54 @@ fn get_git_branch(cwd: Option<&str>) -> Option<String> {
     None
 }
 
+/// 获取未提交的文件数量
+fn get_uncommitted_files(cwd: Option<&str>) -> Option<usize> {
+    let cwd = cwd?;
+
+    let output = Command::new("git")
+        .args(&["status", "--porcelain"])
+        .current_dir(cwd)
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let status = String::from_utf8(output.stdout).ok()?;
+        let count = status.lines().filter(|line| !line.is_empty()).count();
+        if count > 0 {
+            return Some(count);
+        }
+    }
+    None
+}
+
+/// 格式化会话时长
+fn format_duration(ms: u64) -> String {
+    let seconds = ms / 1000;
+    let minutes = seconds / 60;
+    let hours = minutes / 60;
+
+    if hours > 0 {
+        format!("{}h{}m", hours, minutes % 60)
+    } else if minutes > 0 {
+        format!("{}m", minutes)
+    } else {
+        format!("{}s", seconds)
+    }
+}
+
+/// 计算缓存命中率
+fn calculate_cache_hit_rate(usage: &CurrentUsage) -> Option<f64> {
+    let cache_read = usage.cache_read_input_tokens?;
+    let total_input = usage.input_tokens?;
+
+    if total_input == 0 {
+        return None;
+    }
+
+    let hit_rate = (cache_read as f64 / total_input as f64) * 100.0;
+    Some(hit_rate)
+}
+
 /// 构建 statusline 输出
 fn build_statusline(input: &StatusInput) -> String {
     let mut parts = Vec::new();
@@ -169,6 +217,16 @@ fn build_statusline(input: &StatusInput) -> String {
         ));
     }
 
+    // 未提交文件数
+    if let Some(count) = get_uncommitted_files(input.workspace.current_dir.as_deref()) {
+        parts.push(format!(
+            "{}📝{}{}",
+            colors::YELLOW,
+            count,
+            colors::RESET
+        ));
+    }
+
     // 上下文使用率
     if let Some(percentage) = input.context_window.used_percentage {
         let color = get_context_color(percentage);
@@ -195,6 +253,25 @@ fn build_statusline(input: &StatusInput) -> String {
                 colors::RESET
             ));
         }
+
+        // 缓存命中率
+        if let Some(hit_rate) = calculate_cache_hit_rate(usage) {
+            if hit_rate > 0.0 {
+                let color = if hit_rate >= 80.0 {
+                    colors::GREEN
+                } else if hit_rate >= 50.0 {
+                    colors::YELLOW
+                } else {
+                    colors::RED
+                };
+                parts.push(format!(
+                    "{}cache:{:.0}%{}",
+                    color,
+                    hit_rate,
+                    colors::RESET
+                ));
+            }
+        }
     }
 
     // 成本
@@ -204,6 +281,18 @@ fn build_statusline(input: &StatusInput) -> String {
                 "{}${}{}",
                 colors::YELLOW,
                 format_cost(cost),
+                colors::RESET
+            ));
+        }
+    }
+
+    // 会话时长
+    if let Some(duration_ms) = input.cost.total_duration_ms {
+        if duration_ms > 0 {
+            parts.push(format!(
+                "{}⏱{}{}",
+                colors::CYAN,
+                format_duration(duration_ms),
                 colors::RESET
             ));
         }
