@@ -7,6 +7,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BINARY_NAME="cc-statusline"
 INSTALL_DIR="$HOME/.claude"
 
+# 解析命令行参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo "用法: $0 [选项]"
+            echo ""
+            echo "选项:"
+            echo "  -h, --help        显示此帮助信息"
+            exit 0
+            ;;
+        *)
+            echo "未知选项: $1"
+            echo "使用 -h 或 --help 查看帮助"
+            exit 1
+            ;;
+    esac
+done
+
 echo "构建 release 版本..."
 cargo build --release
 

@@ -6,7 +6,32 @@ set -e
 
 REPO="zzfn/cc-statusline"
 BINARY_NAME="cc-statusline"
-INSTALL_DIR="${1:-$HOME/.claude}"
+INSTALL_DIR="$HOME/.claude"
+
+# 解析命令行参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            echo "用法: $0 [选项]"
+            echo ""
+            echo "选项:"
+            echo "  -h, --help        显示此帮助信息"
+            exit 0
+            ;;
+        *)
+            # 兼容旧版本：第一个参数作为安装目录
+            if [ -z "$CUSTOM_INSTALL_DIR" ]; then
+                CUSTOM_INSTALL_DIR="$1"
+                INSTALL_DIR="$1"
+            else
+                echo "未知选项: $1"
+                echo "使用 -h 或 --help 查看帮助"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
 
 # 检测系统架构
 detect_platform() {
@@ -118,3 +143,6 @@ echo ""
 echo "✓ 安装完成！"
 echo ""
 echo "重启 Claude Code 或配置会自动生效。"
+echo ""
+echo "提示: 如果使用 ZAI API，程序会自动检测并显示使用情况。"
+echo "只需在 ~/.claude/settings.json 中配置 baseURL 和 authToken 即可。"
