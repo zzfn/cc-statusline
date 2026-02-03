@@ -217,10 +217,10 @@ fn read_cache() -> Option<ZhipuUsageCache> {
     let content = fs::read_to_string(cache_path).ok()?;
     let cache: ZhipuUsageCache = serde_json::from_str(&content).ok()?;
 
-    // 检查缓存是否过期（5分钟）
+    // 检查缓存是否过期（3分钟）
     let now = Utc::now();
     let age = now.signed_duration_since(cache.timestamp);
-    if age.num_minutes() < 5 {
+    if age.num_minutes() < 3 {
         Some(cache)
     } else {
         None
@@ -316,12 +316,7 @@ fn read_claude_config() -> Option<(String, String)> {
 
 /// 获取质普使用情况（带缓存）
 fn get_zhipu_usage() -> Option<ZhipuUsageCache> {
-    // 先尝试读取缓存
-    if let Some(cache) = read_cache() {
-        return Some(cache);
-    }
-
-    // 缓存不存在或过期，从配置文件或环境变量获取
+    // 先从配置文件或环境变量获取 base_url，检查是否是质普域名
     let (base_url, auth_token) = read_claude_config()
         .or_else(|| {
             let base_url = std::env::var("ANTHROPIC_BASE_URL").ok()?;
@@ -330,8 +325,13 @@ fn get_zhipu_usage() -> Option<ZhipuUsageCache> {
         })?;
 
     // 检查是否是质普域名
-    if !base_url.contains("bigmodel.cn") && !base_url.contains("api.z.ai") {
+    if !base_url.contains("bigmodel.cn") && !base_url.contains("z.ai") {
         return None;
+    }
+
+    // 确认是质普域名后，再尝试读取缓存
+    if let Some(cache) = read_cache() {
+        return Some(cache);
     }
 
     fetch_zhipu_usage(&base_url, &auth_token)
