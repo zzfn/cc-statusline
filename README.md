@@ -10,21 +10,25 @@
 
 ## 安装
 
+### 方式一：一键安装（推荐）
+
 ```bash
-# 克隆并构建
-cd /path/to/claudecode-statusline
+curl -fsSL https://raw.githubusercontent.com/zzfn/claudecode-stausline/main/setup.sh | bash
+```
+
+### 方式二：从源码构建
+
+```bash
+git clone https://github.com/zzfn/claudecode-stausline.git
+cd claudecode-stausline
 ./install.sh
 ```
 
-或手动安装：
+### 方式三：手动安装
 
-```bash
-cargo build --release
-cp target/release/claudecode-statusline ~/.claude/
-chmod +x ~/.claude/claudecode-statusline
-```
-
-然后在 `~/.claude/settings.json` 中添加：
+1. 从 [Releases](https://github.com/zzfn/claudecode-stausline/releases) 下载对应平台的二进制文件
+2. 解压并复制到 `~/.claude/`
+3. 在 `~/.claude/settings.json` 中添加：
 
 ```json
 {
