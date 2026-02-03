@@ -348,10 +348,12 @@ impl Provider for YunyiProvider {
 
         if let Some(ref expires_at) = usage.expires_at {
             let formatted = chrono::DateTime::parse_from_rfc3339(expires_at)
-                .and_then(|dt| {
-                    chrono::FixedOffset::east_opt(8 * 3600)
-                        .map(|offset| dt.with_timezone(&offset))
-                        .ok_or(chrono::ParseError::NotEnough)
+                .map(|dt| {
+                    if let Some(offset) = chrono::FixedOffset::east_opt(8 * 3600) {
+                        dt.with_timezone(&offset)
+                    } else {
+                        dt
+                    }
                 })
                 .map(|dt| dt.format("%m-%d %H:%M").to_string())
                 .unwrap_or_else(|_| expires_at.clone());
