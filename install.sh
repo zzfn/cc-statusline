@@ -17,6 +17,9 @@ echo "复制二进制文件..."
 cp "$SCRIPT_DIR/target/release/$BINARY_NAME" "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
+echo "签名二进制文件..."
+codesign --force --sign - "$INSTALL_DIR/$BINARY_NAME"
+
 echo "配置 Claude Code..."
 SETTINGS_FILE="$INSTALL_DIR/settings.json"
 

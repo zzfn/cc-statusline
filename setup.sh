@@ -75,6 +75,12 @@ else
     chmod +x "$INSTALL_DIR/$BINARY_NAME"
 fi
 
+# macOS 需要签名
+if [[ "$PLATFORM" == *"darwin"* ]]; then
+    echo "签名二进制文件..."
+    codesign --force --sign - "$INSTALL_DIR/$BINARY_NAME" 2>/dev/null || echo "警告: 签名失败，可能需要手动签名"
+fi
+
 echo "已安装到: $INSTALL_DIR/$BINARY_NAME"
 
 # 配置 settings.json
