@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BINARY_NAME="claudecode-statusline"
+BINARY_NAME="cc-statusline"
 INSTALL_DIR="$HOME/.claude"
 
 echo "构建 release 版本..."
@@ -24,13 +24,13 @@ if [ -f "$SETTINGS_FILE" ]; then
     # 使用 jq 更新现有配置（如果有 jq）
     if command -v jq &> /dev/null; then
         TMP_FILE=$(mktemp)
-        jq '.statusLine = {"type": "command", "command": "~/.claude/claudecode-statusline", "padding": 0}' "$SETTINGS_FILE" > "$TMP_FILE"
+        jq '.statusLine = {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}' "$SETTINGS_FILE" > "$TMP_FILE"
         mv "$TMP_FILE" "$SETTINGS_FILE"
         echo "已更新 settings.json"
     else
         echo "警告: 未找到 jq，请手动更新 $SETTINGS_FILE"
         echo "添加以下配置:"
-        echo '  "statusLine": {"type": "command", "command": "~/.claude/claudecode-statusline", "padding": 0}'
+        echo '  "statusLine": {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}'
     fi
 else
     # 创建新配置文件
@@ -38,7 +38,7 @@ else
 {
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/claudecode-statusline",
+    "command": "~/.claude/cc-statusline",
     "padding": 0
   }
 }

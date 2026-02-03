@@ -4,8 +4,8 @@
 
 set -e
 
-REPO="zzfn/claudecode-stausline"
-BINARY_NAME="claudecode-statusline"
+REPO="zzfn/cc-statusline"
+BINARY_NAME="cc-statusline"
 INSTALL_DIR="${1:-$HOME/.claude}"
 
 # 检测系统架构
@@ -79,12 +79,12 @@ echo "已安装到: $INSTALL_DIR/$BINARY_NAME"
 
 # 配置 settings.json
 SETTINGS_FILE="$INSTALL_DIR/settings.json"
-STATUSLINE_CONFIG='"statusLine": {"type": "command", "command": "~/.claude/claudecode-statusline", "padding": 0}'
+STATUSLINE_CONFIG='"statusLine": {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}'
 
 if [ -f "$SETTINGS_FILE" ]; then
     if command -v jq &> /dev/null; then
         TMP_FILE=$(mktemp)
-        jq '.statusLine = {"type": "command", "command": "~/.claude/claudecode-statusline", "padding": 0}' "$SETTINGS_FILE" > "$TMP_FILE"
+        jq '.statusLine = {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}' "$SETTINGS_FILE" > "$TMP_FILE"
         mv "$TMP_FILE" "$SETTINGS_FILE"
         echo "已更新配置: $SETTINGS_FILE"
     else
@@ -100,7 +100,7 @@ else
 {
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/claudecode-statusline",
+    "command": "~/.claude/cc-statusline",
     "padding": 0
   }
 }
