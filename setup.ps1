@@ -123,6 +123,3 @@ Write-Host ""
 Write-Host "✓ 安装完成！" -ForegroundColor Green
 Write-Host ""
 Write-Host "重启 Claude Code 或配置会自动生效。"
-Write-Host ""
-Write-Host "提示: 如果使用 ZAI API，程序会自动检测并显示使用情况。"
-Write-Host "只需在 $SETTINGS_FILE 中配置 baseURL 和 authToken 即可。"
