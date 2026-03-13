@@ -1,8 +1,9 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Utc};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use std::time::Duration;
 
 use crate::colors;
@@ -183,7 +184,325 @@ impl Provider for ZhipuProvider {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════════
+// Anthropic 官方 API 用量
+// ════════════════════════════════════════════════════════════════════════════════
+
+/// Anthropic 官方用量响应
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AnthropicUsage {
+    pub five_hour: AnthropicPeriod,
+    pub seven_day: AnthropicPeriod,
+    #[serde(default)]
+    pub extra_usage: Option<AnthropicExtra>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AnthropicPeriod {
+    pub utilization: f64,
+    pub resets_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AnthropicExtra {
+    pub is_enabled: bool,
+    #[serde(default)]
+    pub used_credits: Option<u64>,
+    #[serde(default)]
+    pub monthly_limit: Option<u64>,
+}
+
+/// Anthropic 用量缓存
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AnthropicUsageCache {
+    pub usage: AnthropicUsage,
+    pub timestamp: DateTime<Utc>,
+}
+
+pub struct AnthropicOfficial;
+
+impl AnthropicOfficial {
+    fn cache_path(&self) -> PathBuf {
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(home)
+            .join(".claude")
+            .join(".anthropic_usage_cache.json")
+    }
+
+    fn read_cache(&self) -> Option<AnthropicUsageCache> {
+        let cache_path = self.cache_path();
+        let content = fs::read_to_string(cache_path).ok()?;
+        let cache: AnthropicUsageCache = serde_json::from_str(&content).ok()?;
+
+        // 缓存 60 秒
+        let now = Utc::now();
+        let age = now.signed_duration_since(cache.timestamp);
+        if age.num_seconds() < 60 {
+            Some(cache)
+        } else {
+            None
+        }
+    }
+
+    fn write_cache(&self, cache: &AnthropicUsageCache) {
+        let cache_path = self.cache_path();
+        if let Ok(json) = serde_json::to_string(cache) {
+            let _ = fs::write(cache_path, json);
+        }
+    }
+
+    /// 获取 OAuth token
+    fn get_oauth_token(&self) -> Option<String> {
+        // 1. 环境变量
+        if let Ok(token) = std::env::var("CLAUDE_CODE_OAUTH_TOKEN") {
+            if !token.is_empty() {
+                return Some(token);
+            }
+        }
+
+        // 2. macOS Keychain
+        if cfg!(target_os = "macos") {
+            let output = Command::new("security")
+                .args(&["find-generic-password", "-s", "Claude Code-credentials", "-w"])
+                .output()
+                .ok()?;
+
+            if output.status.success() {
+                let blob = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&blob) {
+                    if let Some(token) = json["claudeAiOauth"]["accessToken"].as_str() {
+                        return Some(token.to_string());
+                    }
+                }
+            }
+        }
+
+        // 3. 凭证文件
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .ok()?;
+        let creds_path = PathBuf::from(home).join(".claude").join(".credentials.json");
+
+        if creds_path.exists() {
+            if let Ok(content) = fs::read_to_string(&creds_path) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(token) = json["claudeAiOauth"]["accessToken"].as_str() {
+                        return Some(token.to_string());
+                    }
+                }
+            }
+        }
+
+        // 4. Linux secret-tool
+        if cfg!(target_os = "linux") {
+            let output = Command::new("timeout")
+                .args(&["2", "secret-tool", "lookup", "service", "Claude Code-credentials"])
+                .output()
+                .ok()?;
+
+            if output.status.success() {
+                let blob = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&blob) {
+                    if let Some(token) = json["claudeAiOauth"]["accessToken"].as_str() {
+                        return Some(token.to_string());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn fetch_usage(&self) -> Option<AnthropicUsageCache> {
+        let token = self.get_oauth_token()?;
+
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .ok()?;
+
+        let response = client
+            .get("https://api.anthropic.com/api/oauth/usage")
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", token))
+            .header("anthropic-beta", "oauth-2025-04-20")
+            .header("User-Agent", "claude-code/statusline")
+            .send()
+            .ok()?;
+
+        if !response.status().is_success() {
+            return None;
+        }
+
+        let usage: AnthropicUsage = response.json().ok()?;
+
+        let cache = AnthropicUsageCache {
+            usage,
+            timestamp: Utc::now(),
+        };
+
+        self.write_cache(&cache);
+        Some(cache)
+    }
+
+    fn get_usage(&self) -> Option<AnthropicUsageCache> {
+        if let Some(cache) = self.read_cache() {
+            return Some(cache);
+        }
+        self.fetch_usage()
+    }
+
+    /// 格式化重置时间
+    fn format_reset_time(iso_str: &str) -> Option<String> {
+        // 尝试解析 ISO 8601 时间
+        let dt = DateTime::parse_from_rfc3339(iso_str).ok()?;
+        let dt_local = dt.with_timezone(&chrono::Local);
+
+        let now = Utc::now();
+        let dt_utc = DateTime::parse_from_rfc3339(iso_str).ok()?.with_timezone(&Utc);
+        let is_today = (dt_utc - now).num_hours() < 24;
+
+        if is_today {
+            // 只显示时间，如 "10:30pm"
+            Some(dt_local.format("%-l:%M%P").to_string().replace("  ", " "))
+        } else {
+            // 显示日期和时间，如 "mar 16, 10:30pm"
+            Some(dt_local.format("%b %-d, %-l:%M%P").to_string().replace("  ", " "))
+        }
+    }
+
+    /// 构建进度条
+    fn build_bar(pct: f64, width: usize) -> String {
+        let pct = pct.clamp(0.0, 100.0) as usize;
+        let filled = pct * width / 100;
+        let empty = width - filled;
+
+        let color = if pct >= 90 {
+            colors::RED
+        } else if pct >= 70 {
+            colors::YELLOW
+        } else if pct >= 50 {
+            colors::ORANGE
+        } else {
+            colors::GREEN
+        };
+
+        let filled_str: String = "●".repeat(filled);
+        let empty_str: String = "○".repeat(empty);
+
+        format!("{}{}{}{}{}", color, filled_str, colors::DIM, empty_str, colors::RESET)
+    }
+}
+
+impl Provider for AnthropicOfficial {
+    fn name(&self) -> &'static str {
+        "anthropic"
+    }
+
+    fn matches(&self, base_url: &str) -> bool {
+        // 匹配官方 API 或没有配置第三方 base_url
+        base_url.contains("api.anthropic.com") || base_url.is_empty()
+    }
+
+    fn get_parts(&self, _base_url: &str, _auth_token: &str) -> Vec<String> {
+        let mut parts = Vec::new();
+        let Some(cache) = self.get_usage() else {
+            return parts;
+        };
+
+        let usage = &cache.usage;
+
+        // 五小时用量
+        let five_hr_pct = usage.five_hour.utilization;
+        let five_hr_bar = Self::build_bar(five_hr_pct, 10);
+        let five_hr_reset = usage
+            .five_hour
+            .resets_at
+            .as_ref()
+            .and_then(|r| Self::format_reset_time(r))
+            .unwrap_or_else(|| "?".to_string());
+
+        parts.push(format!(
+            "{}current{} {} {:3.0}%{} {} {}{}",
+            colors::WHITE,
+            colors::RESET,
+            five_hr_bar,
+            five_hr_pct,
+            colors::RESET,
+            colors::DIM,
+            five_hr_reset,
+            colors::RESET
+        ));
+
+        // 七天用量
+        let seven_day_pct = usage.seven_day.utilization;
+        let seven_day_bar = Self::build_bar(seven_day_pct, 10);
+        let seven_day_reset = usage
+            .seven_day
+            .resets_at
+            .as_ref()
+            .and_then(|r| Self::format_reset_time(r))
+            .unwrap_or_else(|| "?".to_string());
+
+        parts.push(format!(
+            "{}weekly{}  {} {:3.0}%{} {} {}{}",
+            colors::WHITE,
+            colors::RESET,
+            seven_day_bar,
+            seven_day_pct,
+            colors::RESET,
+            colors::DIM,
+            seven_day_reset,
+            colors::RESET
+        ));
+
+        // 额外用量（如果启用）
+        if let Some(ref extra) = usage.extra_usage {
+            if extra.is_enabled {
+                let used = extra.used_credits.unwrap_or(0) as f64 / 100.0;
+                let limit = extra.monthly_limit.unwrap_or(0) as f64 / 100.0;
+                let extra_pct = if limit > 0.0 {
+                    (used / limit) * 100.0
+                } else {
+                    0.0
+                };
+                let extra_bar = Self::build_bar(extra_pct, 10);
+
+                // 下个月 1 号
+                let now = chrono::Local::now();
+                let next_month = if now.month() == 12 {
+                    now.with_year(now.year() + 1)
+                        .and_then(|d| d.with_month(1))
+                } else {
+                    now.with_month(now.month() + 1)
+                };
+                let extra_reset = next_month
+                    .map(|d| d.format("%b %-d").to_string())
+                    .unwrap_or_else(|| "?".to_string());
+
+                parts.push(format!(
+                    "{}extra{}   {} ${:.2}/{:.2} {}{}{}",
+                    colors::WHITE,
+                    colors::RESET,
+                    extra_bar,
+                    used,
+                    limit,
+                    colors::DIM,
+                    extra_reset,
+                    colors::RESET
+                ));
+            }
+        }
+
+        parts
+    }
+}
+
 pub fn providers() -> Vec<&'static dyn Provider> {
     static ZHIPU_PROVIDER: ZhipuProvider = ZhipuProvider;
-    vec![&ZHIPU_PROVIDER]
+    static ANTHROPIC_PROVIDER: AnthropicOfficial = AnthropicOfficial;
+    vec![&ZHIPU_PROVIDER, &ANTHROPIC_PROVIDER]
 }

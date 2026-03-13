@@ -89,6 +89,8 @@ mod colors {
     pub const BLUE: &str = "\x1b[34m";
     pub const MAGENTA: &str = "\x1b[35m";
     pub const CYAN: &str = "\x1b[36m";
+    pub const WHITE: &str = "\x1b[37m";
+    pub const ORANGE: &str = "\x1b[38;5;208m";
 }
 
 /// 根据使用百分比返回对应颜色
@@ -196,6 +198,15 @@ struct ClaudeConfig {
     base_url: Option<String>,
     #[serde(rename = "authToken")]
     auth_token: Option<String>,
+    env: Option<ClaudeConfigEnv>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeConfigEnv {
+    #[serde(rename = "ANTHROPIC_BASE_URL")]
+    anthropic_base_url: Option<String>,
+    #[serde(rename = "ANTHROPIC_AUTH_TOKEN")]
+    anthropic_auth_token: Option<String>,
 }
 
 /// 从 Claude Code 配置文件读取配置
@@ -208,10 +219,19 @@ fn read_claude_config() -> Option<(String, String)> {
     let content = fs::read_to_string(config_path).ok()?;
     let config: ClaudeConfig = serde_json::from_str(&content).ok()?;
 
-    let base_url = config.base_url?;
-    let auth_token = config.auth_token?;
+    // 优先使用顶层 baseURL/authToken
+    if let (Some(base_url), Some(auth_token)) = (config.base_url, config.auth_token) {
+        return Some((base_url, auth_token));
+    }
 
-    Some((base_url, auth_token))
+    // 其次使用 env 里的 ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN
+    if let Some(env) = config.env {
+        if let (Some(base_url), Some(auth_token)) = (env.anthropic_base_url, env.anthropic_auth_token) {
+            return Some((base_url, auth_token));
+        }
+    }
+
+    None
 }
 
 /// 构建 statusline 输出
@@ -318,14 +338,25 @@ fn build_statusline(input: &StatusInput) -> String {
     }
 
     // 自定义数据源（放在最后）
-    if let Some((base_url, auth_token)) = read_claude_config().or_else(|| {
+    let config = read_claude_config().or_else(|| {
         let base_url = std::env::var("ANTHROPIC_BASE_URL").ok()?;
         let auth_token = std::env::var("ANTHROPIC_AUTH_TOKEN").ok()?;
         Some((base_url, auth_token))
-    }) {
+    });
+
+    if let Some((base_url, auth_token)) = &config {
+        // 第三方 provider
         for provider in providers() {
-            if provider.matches(&base_url) {
-                parts.extend(provider.get_parts(&base_url, &auth_token));
+            if provider.matches(base_url) && provider.name() != "anthropic" {
+                parts.extend(provider.get_parts(base_url, auth_token));
+                break;
+            }
+        }
+    } else {
+        // 官方 API（使用 OAuth）
+        for provider in providers() {
+            if provider.name() == "anthropic" {
+                parts.extend(provider.get_parts("", ""));
                 break;
             }
         }
