@@ -92,22 +92,6 @@ export ANTHROPIC_AUTH_TOKEN="your-token-here"
 
 程序会自动检测并显示 ZAI 的 Token 使用率和 MCP 使用率。
 
-## 云逸（YUNYI）功能
-
-说明：云逸为第三方服务，与 Claude/Anthropic 无官方关系。
-
-如果你使用云逸 API，同样在 `~/.claude/settings.json` 中设置 `baseURL` 和 `authToken`，或设置环境变量：
-
-```bash
-export ANTHROPIC_BASE_URL="https://yunyi.rdzhvip.com/api/anthropic"
-# 或
-export ANTHROPIC_BASE_URL="https://yunyi.cfd/api/anthropic"
-
-export ANTHROPIC_AUTH_TOKEN="your-token-here"
-```
-
-程序会自动检测并显示云逸的剩余额度与过期时间。
-
 ## 显示内容
 
 | 项目 | 说明 | 颜色 |
@@ -120,8 +104,6 @@ export ANTHROPIC_AUTH_TOKEN="your-token-here"
 | `cache:N%` | 缓存命中率 | 绿/黄/红 |
 | `[ZAI] Token(5h):N%` | ZAI Token 使用率（5小时窗口） | 绿/黄/红 |
 | `[ZAI] MCP(1月):N%` | ZAI MCP 调用使用率（1个月窗口） | 绿/黄/红 |
-| `[YUNYI] Rem:$N.NN` | 云逸当日剩余额度 | 绿/黄/红 |
-| `[YUNYI] Exp:MM-DD HH:MM` | 云逸过期时间（东八区） | 灰色 |
 
 上下文使用率颜色：
 - 绿色: < 60%
