@@ -120,10 +120,10 @@ if [ -f "$SETTINGS_FILE" ]; then
         echo "已更新配置: $SETTINGS_FILE"
     else
         if grep -q '"statusLine"' "$SETTINGS_FILE"; then
-            echo "配置已存在，请手动检查 $SETTINGS_FILE"
+            echo -e "\033[33m⚠ 配置已存在，请手动检查 $SETTINGS_FILE\033[0m"
         else
-            echo "请手动添加以下配置到 $SETTINGS_FILE:"
-            echo "  $STATUSLINE_CONFIG"
+            echo -e "\033[33m⚠ 请手动添加以下配置到 $SETTINGS_FILE:\033[0m"
+            echo -e "\033[36m  $STATUSLINE_CONFIG\033[0m"
         fi
     fi
 else
