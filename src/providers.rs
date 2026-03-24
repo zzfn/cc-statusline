@@ -478,3 +478,106 @@ pub fn providers() -> Vec<&'static dyn Provider> {
     static ANTHROPIC_PROVIDER: AnthropicOfficial = AnthropicOfficial;
     vec![&ZHIPU_PROVIDER, &ANTHROPIC_PROVIDER]
 }
+
+// ════════════════════════════════════════════════════════════════════════════════
+// Claude 双倍用量状态（isclaude2x.com）
+// ════════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Claude2xData {
+    pub is2x: bool,
+    #[serde(rename = "isPeak")]
+    pub is_peak: bool,
+    #[serde(rename = "2xWindowExpiresIn")]
+    pub x2_window_expires_in: Option<String>,
+    #[serde(rename = "standardWindowExpiresIn")]
+    pub standard_window_expires_in: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Claude2xCache {
+    pub data: Claude2xData,
+    pub timestamp: DateTime<Utc>,
+}
+
+fn claude2x_cache_path() -> PathBuf {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".claude").join(".claude2x_cache.json")
+}
+
+fn read_claude2x_cache() -> Option<Claude2xCache> {
+    let content = fs::read_to_string(claude2x_cache_path()).ok()?;
+    let cache: Claude2xCache = serde_json::from_str(&content).ok()?;
+    // 缓存 5 分钟
+    if Utc::now().signed_duration_since(cache.timestamp).num_minutes() < 5 {
+        Some(cache)
+    } else {
+        None
+    }
+}
+
+fn write_claude2x_cache(cache: &Claude2xCache) {
+    if let Ok(json) = serde_json::to_string(cache) {
+        let _ = fs::write(claude2x_cache_path(), json);
+    }
+}
+
+fn fetch_claude2x() -> Option<Claude2xCache> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+
+    let response = client
+        .get("https://isclaude2x.com/json")
+        .header("User-Agent", "claude-code/statusline")
+        .send()
+        .ok()?;
+
+    if !response.status().is_success() {
+        return None;
+    }
+
+    let data: Claude2xData = response.json().ok()?;
+    let cache = Claude2xCache { data, timestamp: Utc::now() };
+    write_claude2x_cache(&cache);
+    Some(cache)
+}
+
+/// 去掉秒数，只保留小时/分钟部分，例如 "2h 25m 21s" → "2h 25m"
+fn trim_seconds(s: &str) -> &str {
+    // 找最后一个包含 'm' 的位置截断
+    if let Some(pos) = s.find('m') {
+        // 如果 m 后面还有内容（如 " 21s"），截掉
+        let after = s[pos + 1..].trim_start();
+        if after.ends_with('s') || after.contains('s') {
+            return s[..pos + 1].trim_end();
+        }
+    }
+    s
+}
+
+/// 获取 2x 状态的 statusline 段落，仅在活跃时返回 Some
+pub fn get_claude_2x_part() -> Option<String> {
+    let cache = read_claude2x_cache().or_else(fetch_claude2x)?;
+    let data = &cache.data;
+
+    if data.is2x {
+        let expires = data
+            .x2_window_expires_in
+            .as_deref()
+            .map(trim_seconds)
+            .unwrap_or("?");
+        Some(format!(
+            "{}{}2x⚡({}){}",
+            colors::BOLD,
+            colors::GREEN,
+            expires,
+            colors::RESET
+        ))
+    } else {
+        None
+    }
+}

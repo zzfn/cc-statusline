@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 mod providers;
-use providers::providers;
+use providers::{providers, get_claude_2x_part};
 
 /// 模型信息
 #[derive(Debug, Deserialize, Default)]
@@ -350,6 +350,11 @@ fn build_statusline(input: &StatusInput) -> String {
                 break;
             }
         }
+    }
+
+    // Claude 2x 用量状态（始终检查，与 provider 无关）
+    if let Some(part) = get_claude_2x_part() {
+        parts.push(part);
     }
 
     parts.join(" │ ")
