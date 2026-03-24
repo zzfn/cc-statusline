@@ -307,20 +307,6 @@ fn build_statusline(input: &StatusInput) -> String {
 
     // Token 统计
     if let Some(ref usage) = input.context_window.current_usage {
-        if let Some(input_tokens) = usage.input_tokens {
-            let formatted = if input_tokens >= 1000 {
-                format!("{:.1}k", input_tokens as f64 / 1000.0)
-            } else {
-                format!("{}", input_tokens)
-            };
-            parts.push(format!(
-                "{}in:{}{}",
-                colors::DIM,
-                formatted,
-                colors::RESET
-            ));
-        }
-
         // 缓存命中率
         if let Some(hit_rate) = calculate_cache_hit_rate(usage) {
             if hit_rate > 0.0 {
