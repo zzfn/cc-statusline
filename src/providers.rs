@@ -374,27 +374,6 @@ impl AnthropicOfficial {
         }
     }
 
-    /// 构建进度条
-    fn build_bar(pct: f64, width: usize) -> String {
-        let pct = pct.clamp(0.0, 100.0) as usize;
-        let filled = pct * width / 100;
-        let empty = width - filled;
-
-        let color = if pct >= 90 {
-            colors::RED
-        } else if pct >= 70 {
-            colors::YELLOW
-        } else if pct >= 50 {
-            colors::ORANGE
-        } else {
-            colors::GREEN
-        };
-
-        let filled_str: String = "●".repeat(filled);
-        let empty_str: String = "○".repeat(empty);
-
-        format!("{}{}{}{}{}", color, filled_str, colors::DIM, empty_str, colors::RESET)
-    }
 }
 
 impl Provider for AnthropicOfficial {
@@ -417,7 +396,6 @@ impl Provider for AnthropicOfficial {
 
         // 五小时用量
         let five_hr_pct = usage.five_hour.utilization;
-        let five_hr_bar = Self::build_bar(five_hr_pct, 10);
         let five_hr_reset = usage
             .five_hour
             .resets_at
@@ -426,10 +404,9 @@ impl Provider for AnthropicOfficial {
             .unwrap_or_else(|| "?".to_string());
 
         parts.push(format!(
-            "{}current{} {} {:3.0}%{} {} {}{}",
+            "{}current{} {:3.0}%{} {} {}{}",
             colors::WHITE,
             colors::RESET,
-            five_hr_bar,
             five_hr_pct,
             colors::RESET,
             colors::DIM,
@@ -439,7 +416,6 @@ impl Provider for AnthropicOfficial {
 
         // 七天用量
         let seven_day_pct = usage.seven_day.utilization;
-        let seven_day_bar = Self::build_bar(seven_day_pct, 10);
         let seven_day_reset = usage
             .seven_day
             .resets_at
@@ -448,10 +424,9 @@ impl Provider for AnthropicOfficial {
             .unwrap_or_else(|| "?".to_string());
 
         parts.push(format!(
-            "{}weekly{}  {} {:3.0}%{} {} {}{}",
+            "{}weekly{}  {:3.0}%{} {} {}{}",
             colors::WHITE,
             colors::RESET,
-            seven_day_bar,
             seven_day_pct,
             colors::RESET,
             colors::DIM,
@@ -464,13 +439,11 @@ impl Provider for AnthropicOfficial {
             if extra.is_enabled {
                 let used = extra.used_credits.unwrap_or(0) as f64 / 100.0;
                 let limit = extra.monthly_limit.unwrap_or(0) as f64 / 100.0;
-                let extra_pct = if limit > 0.0 {
+                let _extra_pct = if limit > 0.0 {
                     (used / limit) * 100.0
                 } else {
                     0.0
                 };
-                let extra_bar = Self::build_bar(extra_pct, 10);
-
                 // 下个月 1 号
                 let now = chrono::Local::now();
                 let next_month = if now.month() == 12 {
@@ -484,10 +457,9 @@ impl Provider for AnthropicOfficial {
                     .unwrap_or_else(|| "?".to_string());
 
                 parts.push(format!(
-                    "{}extra{}   {} ${:.2}/{:.2} {}{}{}",
+                    "{}extra{}   ${:.2}/{:.2} {}{}{}",
                     colors::WHITE,
                     colors::RESET,
-                    extra_bar,
                     used,
                     limit,
                     colors::DIM,
