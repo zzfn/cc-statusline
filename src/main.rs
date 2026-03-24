@@ -181,7 +181,11 @@ fn format_duration(ms: u64) -> String {
 /// 计算缓存命中率
 fn calculate_cache_hit_rate(usage: &CurrentUsage) -> Option<f64> {
     let cache_read = usage.cache_read_input_tokens?;
-    let total_input = usage.input_tokens?;
+    let input_tokens = usage.input_tokens.unwrap_or(0);
+    let cache_creation = usage.cache_creation_input_tokens.unwrap_or(0);
+
+    // 真正的总输入 = 新增 input + 缓存读取 + 缓存写入
+    let total_input = input_tokens + cache_read + cache_creation;
 
     if total_input == 0 {
         return None;
