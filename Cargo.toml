@@ -1,6 +1,6 @@
 [package]
 name = "cc-statusline"
-version = "0.2.9"
+version = "0.3.0"
 edition = "2021"
 description = "A Rust-based statusline plugin for Claude Code"
 authors = ["zzfn"]
