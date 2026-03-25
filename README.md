@@ -4,16 +4,17 @@
 
 ## 效果预览
 
+基础显示：
 ```
 [Claude Sonnet 4.5] │ my-project │ main │ ctx:42% │ cache:85%
 ```
 
-使用 Anthropic 官方 API 时额外显示：
+使用 Anthropic 官方 API 时额外显示（重置时间当天只显示时刻，否则显示日期+时刻）：
 ```
-[Claude Sonnet 4.5] │ my-project │ main │ ctx:42% │ cache:85% │ current  42% 10:30pm │ weekly   18% mar 30
+[Claude Sonnet 4.5] │ my-project │ main │ ctx:42% │ cache:85% │ current  42% 10:30pm │ weekly   18% Mar 30, 10:30pm
 ```
 
-Claude 2x 双倍用量激活时额外显示：
+Claude 2x 双倍用量激活时末尾追加：
 ```
 ... │ 2x⚡(2h 25m)
 ```
