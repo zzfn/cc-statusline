@@ -51,7 +51,7 @@ impl ZhipuProvider {
         // 检查缓存是否过期（3分钟）
         let now = Utc::now();
         let age = now.signed_duration_since(cache.timestamp);
-        if age.num_minutes() < 3 {
+        if age.num_minutes() < 5 {
             Some(cache)
         } else {
             None
@@ -236,10 +236,10 @@ impl AnthropicOfficial {
         let content = fs::read_to_string(cache_path).ok()?;
         let cache: AnthropicUsageCache = serde_json::from_str(&content).ok()?;
 
-        // 缓存 60 秒
+        // 缓存 5 分钟
         let now = Utc::now();
         let age = now.signed_duration_since(cache.timestamp);
-        if age.num_seconds() < 60 {
+        if age.num_minutes() < 5 {
             Some(cache)
         } else {
             None
