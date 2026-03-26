@@ -43,15 +43,21 @@ SETTINGS_FILE="$INSTALL_DIR/settings.json"
 
 if [ -f "$SETTINGS_FILE" ]; then
     # 使用 jq 更新现有配置（如果有 jq）
+    if ! command -v jq &> /dev/null; then
+        if [[ "$(uname)" == "Darwin" ]] && command -v brew &> /dev/null; then
+            echo "未找到 jq，正在通过 Homebrew 安装..."
+            brew install jq
+        else
+            echo "警告: 未找到 jq，请手动更新 $SETTINGS_FILE"
+            echo "添加以下配置:"
+            echo '  "statusLine": {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}'
+        fi
+    fi
     if command -v jq &> /dev/null; then
         TMP_FILE=$(mktemp)
         jq '.statusLine = {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}' "$SETTINGS_FILE" > "$TMP_FILE"
         mv "$TMP_FILE" "$SETTINGS_FILE"
         echo "已更新 settings.json"
-    else
-        echo "警告: 未找到 jq，请手动更新 $SETTINGS_FILE"
-        echo "添加以下配置:"
-        echo '  "statusLine": {"type": "command", "command": "~/.claude/cc-statusline", "padding": 0}'
     fi
 else
     # 创建新配置文件
