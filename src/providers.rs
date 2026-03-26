@@ -236,10 +236,10 @@ impl AnthropicOfficial {
         let content = fs::read_to_string(cache_path).ok()?;
         let cache: AnthropicUsageCache = serde_json::from_str(&content).ok()?;
 
-        // 缓存 5 分钟
+        // 缓存 15 分钟
         let now = Utc::now();
         let age = now.signed_duration_since(cache.timestamp);
-        if age.num_minutes() < 5 {
+        if age.num_minutes() < 15 {
             Some(cache)
         } else {
             None
