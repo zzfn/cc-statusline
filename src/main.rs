@@ -327,7 +327,8 @@ fn build_statusline(input: &StatusInput) -> String {
         }
     }
 
-    // 自定义数据源（放在最后）
+    // 自定义数据源（第二行）
+    let mut quota_parts = Vec::new();
     let config = read_claude_config().or_else(|| {
         let base_url = std::env::var("ANTHROPIC_BASE_URL").ok()?;
         let auth_token = std::env::var("ANTHROPIC_AUTH_TOKEN").ok()?;
@@ -335,29 +336,32 @@ fn build_statusline(input: &StatusInput) -> String {
     });
 
     if let Some((base_url, auth_token)) = &config {
-        // 第三方 provider
         for provider in providers() {
             if provider.matches(base_url) && provider.name() != "anthropic" {
-                parts.extend(provider.get_parts(base_url, auth_token));
+                quota_parts.extend(provider.get_parts(base_url, auth_token));
                 break;
             }
         }
     } else {
-        // 官方 API（使用 OAuth）
         for provider in providers() {
             if provider.name() == "anthropic" {
-                parts.extend(provider.get_parts("", ""));
+                quota_parts.extend(provider.get_parts("", ""));
                 break;
             }
         }
     }
 
-    // Claude 2x 用量状态（始终检查，与 provider 无关）
+    // Claude 2x 用量状态
     if let Some(part) = get_claude_2x_part() {
-        parts.push(part);
+        quota_parts.push(part);
     }
 
-    parts.join(" │ ")
+    let line1 = parts.join(" │ ");
+    if quota_parts.is_empty() {
+        line1
+    } else {
+        format!("{}\n{}", line1, quota_parts.join(" │ "))
+    }
 }
 
 fn main() {
