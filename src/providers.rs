@@ -8,6 +8,12 @@ use std::time::Duration;
 
 use crate::colors;
 
+fn get_context_color(pct: f64) -> &'static str {
+    if pct >= 80.0 { colors::RED }
+    else if pct >= 60.0 { colors::YELLOW }
+    else { colors::GREEN }
+}
+
 pub trait Provider {
     fn name(&self) -> &'static str;
     fn matches(&self, base_url: &str) -> bool;
@@ -420,6 +426,7 @@ impl Provider for AnthropicOfficial {
 
         // 五小时用量
         let five_hr_pct = usage.five_hour.utilization;
+        let five_hr_color = get_context_color(five_hr_pct);
         let five_hr_reset = usage
             .five_hour
             .resets_at
@@ -428,9 +435,10 @@ impl Provider for AnthropicOfficial {
             .unwrap_or_else(|| "?".to_string());
 
         parts.push(format!(
-            "{}current{} {:3.0}%{} {} {}{}",
+            "{}current{} {}{:3.0}%{} {} {}{}",
             colors::WHITE,
             colors::RESET,
+            five_hr_color,
             five_hr_pct,
             colors::RESET,
             colors::DIM,
@@ -440,6 +448,7 @@ impl Provider for AnthropicOfficial {
 
         // 七天用量
         let seven_day_pct = usage.seven_day.utilization;
+        let seven_day_color = get_context_color(seven_day_pct);
         let seven_day_reset = usage
             .seven_day
             .resets_at
@@ -448,9 +457,10 @@ impl Provider for AnthropicOfficial {
             .unwrap_or_else(|| "?".to_string());
 
         parts.push(format!(
-            "{}weekly{}  {:3.0}%{} {} {}{}",
+            "{}weekly{}  {}{:3.0}%{} {} {}{}",
             colors::WHITE,
             colors::RESET,
+            seven_day_color,
             seven_day_pct,
             colors::RESET,
             colors::DIM,
