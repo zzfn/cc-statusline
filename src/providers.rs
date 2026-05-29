@@ -231,6 +231,10 @@ impl AnthropicOfficial {
             .join(".anthropic_usage_cache.json")
     }
 
+    fn lock_path(&self) -> PathBuf {
+        self.cache_path().with_extension("lock")
+    }
+
     fn read_cache(&self) -> Option<AnthropicUsageCache> {
         let cache_path = self.cache_path();
         let content = fs::read_to_string(cache_path).ok()?;
@@ -244,6 +248,12 @@ impl AnthropicOfficial {
         } else {
             None
         }
+    }
+
+    /// 读取旧缓存（不检查过期），用于锁竞争时降级返回
+    fn read_stale_cache(&self) -> Option<AnthropicUsageCache> {
+        let content = fs::read_to_string(self.cache_path()).ok()?;
+        serde_json::from_str(&content).ok()
     }
 
     fn write_cache(&self, cache: &AnthropicUsageCache) {
@@ -352,7 +362,21 @@ impl AnthropicOfficial {
         if let Some(cache) = self.read_cache() {
             return Some(cache);
         }
-        self.fetch_usage()
+
+        // 用 create_new 原子抢锁，失败说明其他进程正在请求，降级返回旧缓存
+        let lock_path = self.lock_path();
+        let lock = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path);
+
+        if lock.is_err() {
+            return self.read_stale_cache();
+        }
+
+        let result = self.fetch_usage();
+        let _ = fs::remove_file(&lock_path);
+        result
     }
 
     /// 格式化重置时间
