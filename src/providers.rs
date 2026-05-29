@@ -207,7 +207,7 @@ pub struct AnthropicPeriod {
 pub struct AnthropicExtra {
     pub is_enabled: bool,
     #[serde(default)]
-    pub used_credits: Option<u64>,
+    pub used_credits: Option<f64>,
     #[serde(default)]
     pub monthly_limit: Option<u64>,
 }
@@ -437,7 +437,7 @@ impl Provider for AnthropicOfficial {
         // 额外用量（如果启用）
         if let Some(ref extra) = usage.extra_usage {
             if extra.is_enabled {
-                let used = extra.used_credits.unwrap_or(0) as f64 / 100.0;
+                let used = extra.used_credits.unwrap_or(0.0);
                 let limit = extra.monthly_limit.unwrap_or(0) as f64 / 100.0;
                 let _extra_pct = if limit > 0.0 {
                     (used / limit) * 100.0
