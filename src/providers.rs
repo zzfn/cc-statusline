@@ -324,12 +324,12 @@ impl AnthropicOfficial {
             .ok()?;
 
         let response = client
-            .get("https://api.anthropic.com/api/oauth/usage")
+            .get("https://claude.ai/api/oauth/usage")
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", token))
             .header("anthropic-beta", "oauth-2025-04-20")
-            .header("User-Agent", "claude-code/statusline")
+            .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15")
             .send()
             .ok()?;
 
