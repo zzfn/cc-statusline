@@ -369,8 +369,17 @@ impl AnthropicOfficial {
             return Some(cache);
         }
 
-        // 用 create_new 原子抢锁，失败说明其他进程正在请求，降级返回旧缓存
+        // 锁文件超过 30 秒视为残留（进程崩溃未清理），强制删除
         let lock_path = self.lock_path();
+        if let Ok(meta) = fs::metadata(&lock_path) {
+            if let Ok(modified) = meta.modified() {
+                if modified.elapsed().unwrap_or_default().as_secs() > 30 {
+                    let _ = fs::remove_file(&lock_path);
+                }
+            }
+        }
+
+        // 用 create_new 原子抢锁，失败说明其他进程正在请求，降级返回旧缓存
         let lock = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
