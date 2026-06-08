@@ -400,9 +400,7 @@ impl AnthropicOfficial {
         let dt = DateTime::parse_from_rfc3339(iso_str).ok()?;
         let dt_local = dt.with_timezone(&chrono::Local);
 
-        let now = Utc::now();
-        let dt_utc = DateTime::parse_from_rfc3339(iso_str).ok()?.with_timezone(&Utc);
-        let is_today = (dt_utc - now).num_hours() < 24;
+        let is_today = dt_local.date_naive() == chrono::Local::now().date_naive();
 
         if is_today {
             // 只显示时间，如 "10:30pm"
